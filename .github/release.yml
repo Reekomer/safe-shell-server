@@ -1,0 +1,87 @@
+name: Build llama.cpp Server (Tauri Sidecars)
+
+on:
+  workflow_dispatch: # Allows you to trigger the build manually
+  release:
+    types: [created]
+
+jobs:
+  build-macos:
+    name: Build macOS (Metal)
+    runs-on: macos-14 # 'macos-14' specifically provisions an Apple Silicon (M-series) runner
+    steps:
+      - name: Install Build Tools
+        run: brew update && brew install cmake git curl
+
+      - name: Clone llama.cpp
+        run: git clone https://github.com/ggml-org/llama.cpp.git
+        
+      - name: Configure CMake
+        working-directory: llama.cpp
+        run: cmake -B build -DGGML_METAL=ON
+        
+      - name: Compile Server
+        working-directory: llama.cpp
+        run: cmake --build build --config Release -j $(sysctl -n hw.logicalcpu) --target llama-server
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: llama-server-macos-aarch64
+          path: llama.cpp/build/bin/llama-server
+
+  build-windows:
+    name: Build Windows (CUDA)
+    runs-on: windows-latest
+    steps:
+      # Git, CMake, and MSVC are pre-installed on windows-latest runners
+      - name: Install CUDA Toolkit
+        uses: Jimver/cuda-toolkit@v0.2.19
+        with:
+          cuda: '12.4.1' # Adjust version if needed
+
+      - name: Clone llama.cpp
+        run: git clone https://github.com/ggml-org/llama.cpp.git
+
+      - name: Configure CMake
+        working-directory: llama.cpp
+        run: cmake -B build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="80;86;89;90" -DBUILD_SHARED_LIBS=OFF
+        
+      - name: Compile Server
+        working-directory: llama.cpp
+        run: cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS --target llama-server
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: llama-server-windows-x86_64.exe
+          path: llama.cpp/build/bin/Release/llama-server.exe
+
+  build-linux:
+    name: Build Linux (CUDA)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Build Tools
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake git curl libcurl4-openssl-dev libssl-dev
+
+      - name: Install CUDA Toolkit
+        uses: Jimver/cuda-toolkit@v0.2.19
+        with:
+          cuda: '12.4.1'
+
+      - name: Clone llama.cpp
+        run: git clone https://github.com/ggml-org/llama.cpp.git
+
+      - name: Configure CMake
+        working-directory: llama.cpp
+        run: cmake -B build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="80;86;89;90" -DBUILD_SHARED_LIBS=OFF -DLLAMA_CURL=ON
+        
+      - name: Compile Server
+        working-directory: llama.cpp
+        run: cmake --build build --config Release -j $(nproc) --target llama-server
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: llama-server-linux-x86_64
+          path: llama.cpp/build/bin/llama-server
