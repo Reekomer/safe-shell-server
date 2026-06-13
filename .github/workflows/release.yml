@@ -18,12 +18,30 @@ jobs:
         
       - name: Configure CMake
         working-directory: llama.cpp
-        # Adding BUILD_SHARED_LIBS=OFF forces a completely static compilation
-        run: cmake -B build -DGGML_METAL=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_FIND_FRAMEWORK=ONLY -DCMAKE_BUILD_TYPE=Release
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DGGML_METAL=ON \
+            -DLLAMA_CURL=ON \
+            -DCMAKE_IGNORE_PATH="/opt/homebrew"
         
       - name: Compile Server
         working-directory: llama.cpp
         run: cmake --build build --config Release -j $(sysctl -n hw.logicalcpu) --target llama-server
+
+      - name: Verify Binary Portability
+        working-directory: llama.cpp
+        run: |
+          echo "=== Verifying Shared Dependencies ==="
+          otool -L build/bin/llama-server
+          
+          # If we see Homebrew or rpath links, the build fails before you accidentally release it.
+          if otool -L build/bin/llama-server | grep -E "(/opt/homebrew|@rpath/libllama|@rpath/libggml)"; then
+            echo "ERROR: Binary contains non-portable local or shared paths!"
+            exit 1
+          fi
+          echo "Success: Binary is fully portable and linked to native macOS system libraries."
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
