@@ -19,11 +19,17 @@ jobs:
       - name: Configure CMake
         working-directory: llama.cpp
         run: |
+          # Dynamically locate the Apple SDK path
+          SDK_PATH=$(xcrun --show-sdk-path)
+          
+          # Force CMake to use the native macOS system curl, completely bypassing Homebrew
           cmake -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_SHARED_LIBS=OFF \
             -DGGML_METAL=ON \
             -DLLAMA_CURL=ON \
+            -DCURL_LIBRARY="/usr/lib/libcurl.dylib" \
+            -DCURL_INCLUDE_DIR="${SDK_PATH}/usr/include" \
             -DCMAKE_IGNORE_PATH="/opt/homebrew"
         
       - name: Compile Server
