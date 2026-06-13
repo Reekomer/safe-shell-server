@@ -18,7 +18,8 @@ jobs:
         
       - name: Configure CMake
         working-directory: llama.cpp
-        run: cmake -B build -DGGML_METAL=ON
+        # Adding BUILD_SHARED_LIBS=OFF forces a completely static compilation
+        run: cmake -B build -DGGML_METAL=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release
         
       - name: Compile Server
         working-directory: llama.cpp
