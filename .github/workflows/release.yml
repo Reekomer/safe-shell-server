@@ -22,7 +22,7 @@ jobs:
           # Dynamically locate the Apple SDK path
           SDK_PATH=$(xcrun --show-sdk-path)
           
-          # Force CMake to use the native macOS system curl, completely bypassing Homebrew
+          # Force CMake to use the native macOS system curl and completely ban OpenSSL detection
           cmake -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_SHARED_LIBS=OFF \
@@ -30,7 +30,7 @@ jobs:
             -DLLAMA_CURL=ON \
             -DCURL_LIBRARY="/usr/lib/libcurl.dylib" \
             -DCURL_INCLUDE_DIR="${SDK_PATH}/usr/include" \
-            -DCMAKE_IGNORE_PATH="/opt/homebrew"
+            -DCMAKE_DISABLE_FIND_PACKAGE_OpenSSL=TRUE
         
       - name: Compile Server
         working-directory: llama.cpp
