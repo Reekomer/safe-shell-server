@@ -54,28 +54,37 @@ jobs:
     name: Build Windows (CUDA)
     runs-on: windows-latest
     steps:
-      # Git, CMake, and MSVC are pre-installed on windows-latest runners
       - name: Install CUDA Toolkit
         uses: Jimver/cuda-toolkit@v0.2.19
         with:
-          cuda: '12.4.1' # Adjust version if needed
+          cuda: '12.4.1'
+
+      # Sets up the MSVC environment variables so Ninja can find the C++ compiler
+      - name: Setup MSVC Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+
+      # Installs Ninja via Chocolatey (native to windows-latest)
+      - name: Install Ninja
+        run: choco install ninja -y
 
       - name: Clone llama.cpp
         run: git clone https://github.com/ggml-org/llama.cpp.git
 
       - name: Configure CMake
         working-directory: llama.cpp
-        run: cmake -B build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="80;86;89;90" -DBUILD_SHARED_LIBS=OFF
+        # Added -G Ninja to change the build system
+        run: cmake -B build -G Ninja -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="80;86;89;90" -DBUILD_SHARED_LIBS=OFF
         
       - name: Compile Server
         working-directory: llama.cpp
-        run: cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS --target llama-server
+        # Ninja automatically utilizes all available processors, so -j is no longer strictly necessary
+        run: cmake --build build --config Release
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: llama-server-windows-x86_64.exe
-          path: llama.cpp/build/bin/Release/llama-server.exe
+          path: llama.cpp/build/bin/llama-server.exe
 
   build-linux:
     name: Build Linux (CUDA)
