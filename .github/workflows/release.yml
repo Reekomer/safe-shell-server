@@ -52,7 +52,7 @@ jobs:
 
   build-windows:
     name: Build Windows (CUDA)
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - name: Install CUDA Toolkit
         uses: Jimver/cuda-toolkit@v0.2.19
