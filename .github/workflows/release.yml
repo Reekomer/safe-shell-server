@@ -115,7 +115,7 @@ jobs:
           name: llama-server-linux-x86_64
           path: llama.cpp/build/bin/llama-server
 
-build-macos-intel:
+  build-macos-intel:
     name: Build macOS (Intel)
     runs-on: macos-13 # 'macos-13' specifically provisions an Intel (x86_64) runner
     steps:
