@@ -114,3 +114,47 @@ jobs:
         with:
           name: llama-server-linux-x86_64
           path: llama.cpp/build/bin/llama-server
+
+build-macos-intel:
+    name: Build macOS (Intel)
+    runs-on: macos-13 # 'macos-13' specifically provisions an Intel (x86_64) runner
+    steps:
+      - name: Install Build Tools
+        run: brew update && brew install cmake git curl
+
+      - name: Clone llama.cpp
+        run: git clone https://github.com/ggml-org/llama.cpp.git
+        
+      - name: Configure CMake
+        working-directory: llama.cpp
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DGGML_METAL=ON \
+            -DLLAMA_CURL=ON \
+            -DLLAMA_BUILD_BORINGSSL=ON \
+            -DCMAKE_IGNORE_PATH="/usr/local" # Homebrew lives in /usr/local on Intel Macs
+
+      - name: Compile Server
+        working-directory: llama.cpp
+        run: cmake --build build --config Release -j $(sysctl -n hw.logicalcpu) --target llama-server
+
+      - name: Verify Binary Portability
+        working-directory: llama.cpp
+        run: |
+          echo "=== Verifying Shared Dependencies ==="
+          otool -L build/bin/llama-server
+          
+          # Checking /usr/local instead of /opt/homebrew for Intel environments
+          if otool -L build/bin/llama-server | grep -E "(/usr/local|@rpath/libllama|@rpath/libggml)"; then
+            echo "ERROR: Binary contains non-portable local or shared paths!"
+            exit 1
+          fi
+          echo "Success: Binary is fully portable and linked to native macOS system libraries."
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: llama-server-macos-x86_64
+          path: llama.cpp/build/bin/llama-server
