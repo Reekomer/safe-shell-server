@@ -86,6 +86,39 @@ jobs:
           name: llama-server-windows-x86_64.exe
           path: llama.cpp/build/bin/llama-server.exe
 
+  build-windows-vulkan:
+    name: Build Windows (Vulkan)
+    runs-on: windows-2022
+    steps:
+      - name: Install Vulkan SDK
+        uses: humbletim/install-vulkan-sdk@v1.2
+        with:
+          version: latest
+          cache: true
+
+      - name: Setup MSVC Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Ninja
+        run: choco install ninja -y
+
+      - name: Clone llama.cpp
+        run: git clone https://github.com/ggml-org/llama.cpp.git
+
+      - name: Configure CMake
+        working-directory: llama.cpp
+        run: cmake -B build -G Ninja -DGGML_VULKAN=ON -DBUILD_SHARED_LIBS=OFF
+        
+      - name: Compile Server
+        working-directory: llama.cpp
+        run: cmake --build build --config Release
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: llama-server-windows-vulkan-x86_64.exe
+          path: llama.cpp/build/bin/llama-server.exe
+
   build-linux:
     name: Build Linux (CUDA)
     runs-on: ubuntu-latest
