@@ -108,8 +108,8 @@ jobs:
 
       - name: Configure CMake
         working-directory: llama.cpp
-        # Changed from Vulkan_ROOT to CMAKE_PREFIX_PATH so it catches SPIRV-Headers too
-        run: cmake -B build -G Ninja -DGGML_VULKAN=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_PREFIX_PATH="$env:VULKAN_SDK"
+        # Pass a multi-path string to guarantee CMake finds the SPIRV-Headers config
+        run: cmake -B build -G Ninja -DGGML_VULKAN=ON -DBUILD_SHARED_LIBS=OFF "-DCMAKE_PREFIX_PATH=$env:VULKAN_SDK;$env:VULKAN_SDK\Config;$env:VULKAN_SDK\share\cmake\SPIRV-Headers"
         
       - name: Compile Server
         working-directory: llama.cpp
