@@ -89,36 +89,83 @@ jobs:
   build-windows-vulkan:
     name: Build Windows (Vulkan)
     runs-on: windows-2022
+
     steps:
-      # 1. Install the FULL official SDK (Includes glslc.exe)
+      # Install Vulkan SDK
       - name: Install Vulkan SDK
-        uses: humbletim/install-vulkan-sdk@v1.2 # <--- CORRECTED TAG
+        uses: humbletim/install-vulkan-sdk@v1.2
         with:
           version: 1.4.304.1
           cache: true
 
+      # Diagnostic step
+      - name: Inspect Vulkan SDK
+        shell: pwsh
+        run: |
+          Write-Host "=== Vulkan SDK ==="
+          Write-Host "VULKAN_SDK=$env:VULKAN_SDK"
+
+          if (Test-Path $env:VULKAN_SDK) {
+            Write-Host "`n=== SPIRV-related files ==="
+            Get-ChildItem "$env:VULKAN_SDK" -Recurse -ErrorAction SilentlyContinue |
+              Where-Object { $_.Name -match "SPIRV" } |
+              Select-Object FullName
+          }
+
+          Write-Host "`n=== Searching for SPIRV-HeadersConfig.cmake ==="
+          Get-ChildItem "$env:VULKAN_SDK" -Recurse -Filter "SPIRV-HeadersConfig.cmake" -ErrorAction SilentlyContinue
+
+      # MSVC compiler environment
       - name: Setup MSVC Developer Command Prompt
         uses: ilammy/msvc-dev-cmd@v1
 
+      # Ninja
       - name: Install Ninja
         run: choco install ninja -y
 
+      # vcpkg
+      - name: Install vcpkg
+        shell: pwsh
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git
+          .\vcpkg\bootstrap-vcpkg.bat
+
+      # SPIRV-Headers package required by recent llama.cpp Vulkan builds
+      - name: Install SPIRV-Headers
+        shell: pwsh
+        run: |
+          .\vcpkg\vcpkg install spirv-headers:x64-windows
+
+      # Clone llama.cpp
       - name: Clone llama.cpp
         run: git clone https://github.com/ggml-org/llama.cpp.git
 
+      # Optional: print revision for debugging
+      - name: Show llama.cpp revision
+        working-directory: llama.cpp
+        run: git rev-parse HEAD
+
+      # Configure
       - name: Configure CMake
         working-directory: llama.cpp
+        shell: pwsh
         run: |
-          # 1. Sanitize the Windows path so CMake doesn't treat backslashes as escape characters
-          $vulkanPath = $env:VULKAN_SDK -replace '\\', '/'
-          
-          # 2. Pass the sanitized, forward-slashed paths to CMake
-          cmake -B build -G Ninja -DGGML_VULKAN=ON -DBUILD_SHARED_LIBS=OFF "-DCMAKE_PREFIX_PATH=$vulkanPath;$vulkanPath/Config;$vulkanPath/share/cmake/SPIRV-Headers"
-        
+          $toolchain = "${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+          $toolchain = $toolchain -replace '\\','/'
+
+          cmake -B build `
+            -G Ninja `
+            -DGGML_VULKAN=ON `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DCMAKE_BUILD_TYPE=Release `
+            "-DCMAKE_TOOLCHAIN_FILE=$toolchain"
+
+      # Build
       - name: Compile Server
         working-directory: llama.cpp
-        run: cmake --build build --config Release
+        run: cmake --build build --config Release --target llama-server
 
+      # Upload
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
