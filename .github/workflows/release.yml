@@ -92,7 +92,7 @@ jobs:
     steps:
       # 1. Install the FULL official SDK (Includes glslc.exe)
       - name: Install Vulkan SDK
-        uses: humbletim/install-vulkan-sdk@v1.2.0
+        uses: humbletim/install-vulkan-sdk@v1.2 # <--- CORRECTED TAG
         with:
           version: 1.4.304.1
           cache: true
